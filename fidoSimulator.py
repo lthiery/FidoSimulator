@@ -1,5 +1,6 @@
 #!bin/env/python
 
+import copy
 import random
 import math
 import numpy as np
@@ -11,9 +12,9 @@ heaterWarmUp = 15
 class Greenhouse:
 
     def __init__(self, initialTempOutside, initialSun,
-                 diffusion=random.random()/4+0.25,
-                 radiation=random.random()/16+0.25, 
-                 fan=random.random()/4+0.25, 
+                 diffusion=random.random()/100,
+                 radiation=random.random()/8+0.25, 
+                 fan=random.random()/100+0.005, 
                  heater=random.random()*5+5):
         self.tempI = initialTempOutside + radiation*initialSun
         self.dif=diffusion
@@ -21,35 +22,39 @@ class Greenhouse:
         self.heat=heater
         self.heaterSteps = 0
         self.rad=radiation
-        
-        
+        self.state=[False,False]
 
-    def step(self, tempOutside, sun, wantFan, wantHeater):
+    def step(self, tempOutside, sun):
+        
         flux=self.dif
-        if(wantFan==True): flux += self.fan #if fan is fun flux increases
+        if(self.state[0]==True): flux += self.fan #if fan is fun flux increases
         
         self.tempI = self.tempI*(1-flux) + tempOutside*flux + self.rad*sun
-        
+        #self.tempI = self.tempI - (tempOutside-self.tempI)**2*flux + self.rad*sun
         #if heater is on
-        if wantHeater:
+        if self.state[1]==True:
             self.heaterSteps+=1 #it heats up
         else: 
             if self.heaterSteps>0: self.heaterSteps-=1
 
         self.tempI+=self.heat/heaterWarmUp*min(self.heaterSteps,heaterWarmUp)
 
-        return self.tempI
+        energy = 0 ##calculate hypothetical energy usage
+        if self.state[0]==True: energy+=31
+        if self.state[1]==True: energy+=175
 
+        return (self.tempI,energy)
 
+###BRINGING THE DATA IN AND CLEANING IT UP###
 year = '2000'
-month = '01'
+month = '05'
 
 file1 = open('./64060KBOS'+year+month+'.dat', 'r')
 file2 = open('./64050KBOS'+year+month+'.dat', 'r')
 
 def orderedIter(year,month):
     daysInMonth={'01':30, '02':28, '03':31, '04':30, '05':31, '06':30, '07':31,'08':31, '09':30, '10':31, '11':30, '12':31}
-    if int(year)%4.0==0.0: daysInMonth['02']='29'
+    if int(year)%4.0==0.0: daysInMonth['02']=29
     days = []
     for i in range(1,daysInMonth[month]):
         if i<10: days+=['0'+str(i)]
@@ -82,10 +87,8 @@ def checkDict(dict,iterator,index):
 monthOfData = {}
 iterator = orderedIter(year,month)
 
-thing = 0
-
 for i in iterator:
-    monthOfData[i]=[None,None,None]
+    monthOfData[i]=[None,None,None,None]
     
 #add all temps from first file
 for i in file1:
@@ -99,51 +102,81 @@ checkDict(monthOfData,iterator,0) #clean up data, make sure there's entries ever
 #add all cloudy measures from second file
 hiCloud = None
 loCloud = None
+sum=0
+samples=0 
 
 for i in file2:
     line= i.split()
     key = line[1][3:7]+"_"+line[1][7:9]+"_"+line[1][9:11]+"_"+line[1][11:15]
     try: 
         cloudValue = (float(line[2])+float(line[4]))
+        sum+=cloudValue; samples+=1
         if cloudValue<=1:
-            addToDict(monthOfData,key,cloudValue/26.0,1)
+            addToDict(monthOfData,key,cloudValue,1)
         if hiCloud ==None: 
             hiCloud = cloudValue
             loCloud = hiCloud
         else:
             hiCloud = max(cloudValue,hiCloud)
-            loCloud = min(cloudValue,loCloud)
-            
+            loCloud = min(cloudValue,loCloud)        
     except: pass
 
-print hiCloud,loCloud
-
+avgCloud = sum/float(samples)
+print avgCloud
 checkDict(monthOfData,iterator,1)
 
-initial = monthOfData[iterator[0]]
-house = Greenhouse(initial[0],initial[1])
-lastTemp = initial[0]
+###SIMULATING###
+initial = None
+house1 = None
+i=0
+while True:
+    try: 
+        initial = monthOfData[iterator[i]]
+        house1 = Greenhouse(initial[0],initial[1])
+        break
+    except:
+        i+=1
 
+lastTemp = initial[0]
+energy = 0
 for i in iterator:
-    fan = False; heater = False
-    if lastTemp>90: fan=True
-    if lastTemp<65: heater=True
-    newTemp = house.step(monthOfData[i][0],monthOfData[i][1]/hiCloud,fan,heater)
-    if newTemp-lastTemp>10: newTemp=lastTemp
+
+    if lastTemp>90: house1.state[0]=True
+    elif lastTemp<80: house1.state[0]=False
+
+    if lastTemp<65: house1.state[1]=True
+    if lastTemp>70: house1.state[1]=False
+    newOutput = house1.step(monthOfData[i][0],monthOfData[i][1]/(2*avgCloud))
+    newTemp = newOutput[0]
+    energy += newOutput[1]
     addToDict(monthOfData,i,newTemp,2)
+    addToDict(monthOfData,i,energy,3)
     lastTemp=newTemp
 
-checkDict(monthOfData,iterator,2)
+fout = open(year+"_"+month+".csv", "w")
+fout.write("Time,OutsideTemp,Sunlight,InsideTemp,CumulativeEnergyUse\n")
 
-endRange = len(iterator)#/30*3
-beginRange = 0#len(iterator)/30*2
+for i in iterator:
+    fout.write(i+","+str(monthOfData[i][0])+","+
+               str(monthOfData[i][1])+","+
+               str(monthOfData[i][2])+","+
+               str(monthOfData[i][3])+"\n")
+
+house2 = copy.deepcopy(house1)
+
+###GRAPHING STUFF###
+
+endRange = len(iterator)/30*7
+beginRange = len(iterator)/30*0
 x=range(0,endRange)
 Otemps = [monthOfData[i][0] for i in iterator[beginRange:beginRange+endRange]]
 Osun =  [monthOfData[i][1] for i in iterator[beginRange:beginRange+endRange]]
 Itemps =  [monthOfData[i][2] for i in iterator[beginRange:beginRange+endRange]]
+energy =  [monthOfData[i][3] for i in iterator[beginRange:beginRange+endRange]]
 plt.plot(x,Otemps)
-#plt.plot(x,Osun)
 plt.plot(x,Itemps)
 pylab.show()
+
+print house.heater
 
 
