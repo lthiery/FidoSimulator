@@ -97,11 +97,26 @@ for i in file1:
 checkDict(monthOfData,iterator,0) #clean up data, make sure there's entries everywhere
 
 #add all cloudy measures from second file
+hiCloud = None
+loCloud = None
+
 for i in file2:
     line= i.split()
     key = line[1][3:7]+"_"+line[1][7:9]+"_"+line[1][9:11]+"_"+line[1][11:15]
-    try: addToDict(monthOfData,key,(float(line[2])+float(line[4]))/26.0,1)
+    try: 
+        cloudValue = (float(line[2])+float(line[4]))
+        if cloudValue<=1:
+            addToDict(monthOfData,key,cloudValue/26.0,1)
+        if hiCloud ==None: 
+            hiCloud = cloudValue
+            loCloud = hiCloud
+        else:
+            hiCloud = max(cloudValue,hiCloud)
+            loCloud = min(cloudValue,loCloud)
+            
     except: pass
+
+print hiCloud,loCloud
 
 checkDict(monthOfData,iterator,1)
 
@@ -113,9 +128,12 @@ for i in iterator:
     fan = False; heater = False
     if lastTemp>90: fan=True
     if lastTemp<65: heater=True
-    newTemp = house.step(monthOfData[i][0],monthOfData[i][1],fan,heater)
+    newTemp = house.step(monthOfData[i][0],monthOfData[i][1]/hiCloud,fan,heater)
+    if newTemp-lastTemp>10: newTemp=lastTemp
     addToDict(monthOfData,i,newTemp,2)
     lastTemp=newTemp
+
+checkDict(monthOfData,iterator,2)
 
 endRange = len(iterator)#/30*3
 beginRange = 0#len(iterator)/30*2
@@ -128,8 +146,4 @@ plt.plot(x,Otemps)
 plt.plot(x,Itemps)
 pylab.show()
 
-"""
-plt.plot(x,temps[:1000])
-plt.plot(x,suns[:1000])
-plt.plot(x,y1[:1000])
-pylab.show()"""
+
