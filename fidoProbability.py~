@@ -75,60 +75,60 @@ for num in range(0,6):
         except: pass
 
     checkDict(monthOfData,iterator,0) #clean up data, make sure there's entries everywhere
+    
+    if num==0:
+        for key in iterator[:-60]:  
+            masterDict[key[:-7]]=[None]*6
 
     for index,v in enumerate(iterator[:-60]):
-        #monthOfData[v][1]=monthOfData[v][0]-monthOfData[iterator[index+15]][0]
-        try: masterDict[v[-4:]]+=[monthOfData[v][0]-monthOfData[iterator[index+30]][0]]
-        except: masterDict[v[-4:]]=[monthOfData[v][0]-monthOfData[iterator[index+30]][0]]
-           
-                        
-            
-            
+        print masterDict[key[-7:]]
+#masterDict[key[-7:]][num]=monthOfData[v][0]-monthOfData[iterator[index+15]][0]
+        monthOfData[v][1]=monthOfData[v][0]-monthOfData[iterator[index+15]][0]
        
-    """
+
     endRange = len(iterator)/30*29
     beginRange = len(iterator)/30*0
     x=range(0,endRange)
     
     Dtemps = [monthOfData[i][1] for i in iterator[beginRange:beginRange+endRange]]
 
-    plt.plot(x,Dtemps)"""
+    plt.plot(x,Dtemps)
 
-arbitraryValue = 2
-historicalProbs = {}
-def logic(x):
-    if x>arbitraryValue: return 1 
-    else: return 0
+arbitraryValue = 5
 
-def minutesIterator():
-    ret = []
-    for j in range(0,24):
-        for i in range(0,60):
-            time = ""
-            if j<10: time='0'+str(j)
-            else: time=str(j)
-            if i<10: time+='0'+str(i)
-            else: time+= str(i)
-            ret+=[time]  
-    return ret
+for key in masterDict:
+    for i in range(0,5):
+        print masterDict[key]
 
-for i in masterDict:
-    for j in masterDict[i]:
-        try: 
-            #print len(masterDict[i])
-            #print logic(j)
-            historicalProbs[i]+=logic(j)/float(len(masterDict[i]))
-        except:
-            historicalProbs[i]=logic(j)/float(len(masterDict[i]))
-
-#for i in historicalProbs:
-#    print historicalProbs[i]
-"""        
-y = [historicalProbs[i] for i in minutesIterator()]
-
-x = range(0,len(y))
-plt.plot(x,y)        
+ #       if masterDict[key][i]>arbitraryValue:
+  #          masterDict[key][6]+=0.2
+        
 pylab.show()
+
 """
+#add all cloudy measures from second file
+hiCloud = None
+loCloud = None
+sum=0
+samples=0 
 
+for i in file2:
+    line= i.split()
+    key = line[1][3:7]+"_"+line[1][7:9]+"_"+line[1][9:11]+"_"+line[1][11:15]
+    try: 
+        cloudValue = (float(line[2])+float(line[4]))
+        sum+=cloudValue; samples+=1
+        if cloudValue<=1:
+            addToDict(monthOfData,key,cloudValue,1)
+        if hiCloud ==None: 
+            hiCloud = cloudValue
+            loCloud = hiCloud
+        else:
+            hiCloud = max(cloudValue,hiCloud)
+            loCloud = min(cloudValue,loCloud)        
+    except: pass
 
+avgCloud = sum/float(samples)
+print avgCloud
+checkDict(monthOfData,iterator,1)
+"""

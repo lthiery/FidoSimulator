@@ -7,9 +7,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pylab
 import fidoProbability as hist
+import os.path
+import urllib2
 
 
-heaterWarmUp = 15
+heaterWarmUp = 30
 
 class Greenhouse:
 
@@ -19,10 +21,10 @@ class Greenhouse:
     #             fan=random.random()/100+0.00, 
     #             heater=random.random()*5+5):
     def __init__(self, initialTempOutside, initialSun,
-                 diffusion=random.random()/100,
+                 diffusion=random.random()/1000+0.008,
                  radiation=random.random()/8+0.25,
-                 fan=random.random()/100+0.005,
-                 heater=random.random()*5+5):
+                 fan=random.random()/200+0.005,
+                 heater=random.random()*4+2):
         self.tempI = initialTempOutside + radiation*initialSun
         self.dif=diffusion
         self.fan=fan
@@ -56,8 +58,35 @@ class Greenhouse:
 year = '2000'
 month = '05'
 
-file1 = open('./64060KBOS'+year+month+'.dat', 'r')
-file2 = open('./64050KBOS'+year+month+'.dat', 'r')
+filename1 = './64060KBOS'+year+month+'.dat'
+filename2 = './64050KBOS'+year+month+'.dat'
+
+if os.path.isfile(filename1): 
+        print "file already exists"
+else:
+        file1=urllib2.urlopen("ftp://ftp.ncdc.noaa.gov/pub/data/asos-onemin/6406-"+year+"/"+filename1)
+        local_file = open(filename1, "w")
+        #Write to our local file
+        local_file.write(file1.read())
+        local_file.close()
+        print "downloaded fresh copy"
+
+if os.path.isfile(filename2): 
+        print "file already exists"
+else:
+        file2=urllib2.urlopen("ftp://ftp.ncdc.noaa.gov/pub/data/asos-onemin/6405-"+year+"/"+filename2)
+        local_file = open(filename2, "w")
+        #Write to our local file
+        local_file.write(file2.read())
+        local_file.close()
+        print "downloaded fresh copy"
+
+file1 = open(filename1, 'r')
+file2 = open(filename2, 'r')
+
+#print file1.readline()
+#print file2.readline()
+
 
 def orderedIter(year,month):
     daysInMonth={'01':30, '02':28, '03':31, '04':30, '05':31, '06':30, '07':31,'08':31, '09':30, '10':31, '11':30, '12':31}
@@ -101,7 +130,7 @@ for i in iterator:
 for i in file1:
     line= i.split()
     key = line[1][3:7]+"_"+line[1][7:9]+"_"+line[1][9:11]+"_"+line[1][11:15]
-    try: addToDict(monthOfData,key,float(line[7]),0)
+    try: addToDict(monthOfData,key,float(line[-2]),0)
     except: pass
 
 checkDict(monthOfData,iterator,0) #clean up data, make sure there's entries everywhere
@@ -197,23 +226,69 @@ heatArr = []
 energy=0
 flag = 0
 when = 0
+recentSamples = 0
 
-for i in iterator:
+def minutesIterator():
+    ret = []
+    for j in range(0,24):
+        for i in range(0,60):
+            time = ""
+            if j<10: time='0'+str(j)
+            else: time=str(j)
+            if i<10: time+='0'+str(i)
+            else: time+= str(i)
+            ret+=[time]  
+    return ret
+
+pastThreeDays=[None,None,None]
+currentDay={}
+recentTemps=None
+
+#for i in minutesIterator():
+ #   currentDay[i]=None
+
+#for i in pastThreeDays:
+#    for j in minutesIterator():
+#        i[j]=None
+
+for index,i in enumerate(iterator):
     #be simple thermostat at first
     when+=1
-
+    
     if lastTemp>90: house2.state[0]=True
     elif lastTemp<80: house2.state[0]=False
         
     if lastTemp<65: house2.state[1]=True
     if lastTemp>70: house2.state[1]=False
-
-    if hist.historicalProbs[i[-4:]]>0.05:
+    #then try to be smart
+    if hist.historicalProbs[i[-4:]]>0 and monthOfData[i][0]>55:
         when=0
-        flag=1
+        flag=1 
+
+    if recentTemps!=None: 
+        now = i[-4:]
+        nowM=now[2:]
+        nowH=now[:2]
+        nowM=int(nowM)+15
+        if nowM>59: nowM%=60;nowH=int(nowH)+1
+        if nowH>23: nowH='00'
+        if nowM<10: nowM='0'+str(nowM)
+        else: nowM=str(nowM)
+        if nowH<10: nowH='0'+str(nowH)
+        else: nowH=str(nowH)
+
         
-    if when>30: flag = 0
+        if recentTemps[nowH+nowM]>70 and when<15: 
+            pass#flag=1; when=15
+
+
+
+    if when>30 or (monthOfData[i][0]-monthOfData[iterator[index-30]][0]<0):# and monthOfData[i]<60): 
+        flag = 0
+        when = 0
     if flag==1: house2.state[1]=False
+
+
     
 
     newOutput = house2.step(monthOfData[i][0],monthOfData[i][1]/(2*avgCloud))
@@ -230,6 +305,17 @@ for i in iterator:
     heatArr+=[-house2.heaterSteps/float(heaterWarmUp)]
     y+=[lastTemp-newTemp]
     lastTemp= newTemp
+    
+    currentDay[i[-4:]]=[newTemp,monthOfData[i][0]]
+    if i[-4:]==iterator[0][-4:]:   
+        pastThreeDays[2]=pastThreeDays[1]
+        pastThreeDays[1]=pastThreeDays[0]
+        pastThreeDays[0]=currentDay
+        
+        if pastThreeDays[2]!=None:
+            recentTemps={}
+            for i in minutesIterator():
+                recentTemps[i]=pastThreeDays[0][i]*0.25+pastThreeDays[1][i]*0.25+pastThreeDays[2][i]*0.5
 
 A = np.array([difArr,fanArr,radArr,heatArr])
 print np.linalg.lstsq(A.T,y)[0]
@@ -249,7 +335,7 @@ for i in iterator:
 
 ###GRAPHING STUFF###
 
-endRange = len(iterator)/30*7
+endRange = len(iterator)/30*30
 beginRange = len(iterator)/30*0
 x=range(0,endRange)
 Otemps = [monthOfData[i][0] for i in iterator[beginRange:beginRange+endRange]]
@@ -268,24 +354,11 @@ plt.plot(x,Itemps1)         # the second subplot in the first figure
 plt.subplot(211)
 plt.plot(x,Itemps2)
 
-print len(energy1)
-print len(energy2)
+#plt.figure(2)              # a second figure
+plt.subplot(212)
 
-plt.figure(2)              # a second figure
-plt.subplot(111)
 plt.plot(x,energy1)           # creates a subplot(111) by default
 plt.plot(x,energy2)
 
-#plt.figure(1)                # figure 1 current; subplot(212) still current
-#plt.subplot(211)
-#plt.subplot(x,energy2)            # make subplot(211) in figure1 current
-#plt.title('Fido AI')   # subplot 211 title
-
-#plt.plot(x,Otemps)
-#plt.plot(x,Itemps1)
-#plt.plot(x,Itemps2)
-
-#plt.plot(x,energy1)
-#plt.plot(x,energy2)
 
 pylab.show()

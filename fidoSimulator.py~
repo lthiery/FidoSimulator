@@ -1,0 +1,36 @@
+#!bin/env/python
+
+def Greenhouse(self):
+
+    def __init__(self, initialTemp, initialSun,
+                 diffusion=random.randrange(0,0.25,0.01),
+                 radiation=random.randrange(0,0.5,0.01), 
+                 fan=random.randrange(0,0.25,0.01), 
+                 heater=random.randrange(0,0.25,0.01)):
+        self.tempI = initialTemp
+        self.sun = initialSun
+        self.dif=diffusion
+        self.rad=radiation
+        self.fan=fan
+        self.heat=heater
+        
+        
+
+    def step(self, tempOutside, newSun, wantFan, wantHeater):
+        
+        
+        flux=self.diffusion
+        if(wantFan==True): flux += self.fan
+        
+        self.tempI = self.tempI*(1-flux) + tempOutside*flux + self.rad*(newSun-self.sun)
+        self.sun = newSun
+        
+        if(wantHeater): self.tempI+=heat
+
+        return self.tempI
+
+Greenhouse(80,50)
+for i in range(0,32):
+    print step(80,50)
+
+        
