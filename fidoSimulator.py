@@ -1,4 +1,4 @@
-#!bin/env/python
+#!bin/env/python2.6
 
 import copy
 import random
@@ -6,6 +6,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import pylab
+
 
 heaterWarmUp = 15
 
@@ -137,8 +138,10 @@ while True:
     except:
         i+=1
 
+import urllib2
 lastTemp = initial[0]
 energy = 0
+##thermostat model
 for i in iterator:
 
     if lastTemp>90: house1.state[0]=True
@@ -152,7 +155,70 @@ for i in iterator:
     addToDict(monthOfData,i,newTemp,2)
     addToDict(monthOfData,i,energy,3)
     lastTemp=newTemp
+    
+    year =year
+    month =month
+    hour = i[-4:-2]
+    minute =i[len(i)-2:len(i)]
+    day = i[-7:-5]
+    OutsideTemp = str(monthOfData[i][0])
+    Sunlight = str(monthOfData[i][1])
+    InsideTemp = str(newTemp)
+    CumulativeEnergyUse = str(energy)
+    timestamp =i
+"""
+    payload = '{"year":"' + year + '","month":"' + month + '","day" : "' + day +'","hour":"' + hour + '","OutsideTemp" : "' + OutsideTemp + '","Sunlight" : "'+ Sunlight +  '","InsideTemp" : "' + InsideTemp + '","CumulativeEnergyUse" : "' + CumulativeEnergyUse +'"}'
 
+    opener = urllib2.build_opener(urllib2.HTTPHandler)
+    request = urllib2.Request('http://127.0.0.1:80/flounder/' + timestamp, data=payload)
+    request.add_header('Content-Type', 'application/json')
+    request.get_method = lambda: 'PUT'
+    url = opener.open(request)"""
+
+##intelligent? model
+house2 = copy.deepcopy(house1)
+Itemps2=[]
+energy2=[]
+samples = 0
+array = None
+y=[]
+vars = ['dif','fan','rad','heat']
+
+difArr = []
+fanArr = []
+radArr = []
+heatArr = []
+
+for i in iterator:
+    #be simple thermostat at first
+    if True:
+        if lastTemp>90: house2.state[0]=True
+        elif lastTemp<80: house2.state[0]=False
+        
+        if lastTemp<65: house2.state[1]=True
+        if lastTemp>70: house2.state[1]=False
+    
+
+    newOutput = house2.step(monthOfData[i][0],monthOfData[i][1]/(2*avgCloud))
+    newTemp = newOutput[0]
+    energy += newOutput[1]
+    Itemps2+=[newTemp]
+    energy2+=[energy]
+    ##build up array for regression
+    difArr+=[lastTemp-monthOfData[i][0]]
+    if house2.state[0]==False: fanArr+=[0]
+    else: fanArr+=[lastTemp-monthOfData[i][0]]
+    radArr+=[monthOfData[i][1]/(2*avgCloud)]
+    heatArr+=[house2.heaterSteps/heaterWarmUp]
+    y+=[newTemp-lastTemp]
+    lastTemp= newTemp
+
+    
+A = np.array([difArr,fanArr,radArr,heatArr])
+print  np.linalg.lstsq(A.T,y)[0]
+print [house2.dif,house2.fan,house2.rad,house2.heat]
+
+"""
 fout = open(year+"_"+month+".csv", "w")
 fout.write("Time,OutsideTemp,Sunlight,InsideTemp,CumulativeEnergyUse\n")
 
@@ -162,7 +228,7 @@ for i in iterator:
                str(monthOfData[i][2])+","+
                str(monthOfData[i][3])+"\n")
 
-house2 = copy.deepcopy(house1)
+"""
 
 ###GRAPHING STUFF###
 
@@ -171,12 +237,12 @@ beginRange = len(iterator)/30*0
 x=range(0,endRange)
 Otemps = [monthOfData[i][0] for i in iterator[beginRange:beginRange+endRange]]
 Osun =  [monthOfData[i][1] for i in iterator[beginRange:beginRange+endRange]]
-Itemps =  [monthOfData[i][2] for i in iterator[beginRange:beginRange+endRange]]
-energy =  [monthOfData[i][3] for i in iterator[beginRange:beginRange+endRange]]
+Itemps1 =  [monthOfData[i][2] for i in iterator[beginRange:beginRange+endRange]]
+Itemps2 = Itemps2[beginRange:beginRange+endRange]
+energy1 =  [monthOfData[i][3] for i in iterator[beginRange:beginRange+endRange]]
+energy2 = energy2[beginRange::beginRange+endRange]
 plt.plot(x,Otemps)
-plt.plot(x,Itemps)
+plt.plot(x,Itemps1)
+plt.plot(x,Itemps2)
+
 pylab.show()
-
-print house.heater
-
-
