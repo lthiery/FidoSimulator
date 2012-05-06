@@ -204,18 +204,18 @@ for i in iterator:
     energy += newOutput[1]
     Itemps2+=[newTemp]
     energy2+=[energy]
+
     ##build up array for regression
     difArr+=[lastTemp-monthOfData[i][0]]
     if house2.state[0]==False: fanArr+=[0]
     else: fanArr+=[lastTemp-monthOfData[i][0]]
-    radArr+=[monthOfData[i][1]/(2*avgCloud)]
-    heatArr+=[house2.heaterSteps/heaterWarmUp]
-    y+=[newTemp-lastTemp]
+    radArr+=[-monthOfData[i][1]/(2*avgCloud)]
+    heatArr+=[-house2.heaterSteps/float(heaterWarmUp)]
+    y+=[lastTemp-newTemp]
     lastTemp= newTemp
 
-    
 A = np.array([difArr,fanArr,radArr,heatArr])
-print  np.linalg.lstsq(A.T,y)[0]
+print np.linalg.lstsq(A.T,y)[0]
 print [house2.dif,house2.fan,house2.rad,house2.heat]
 
 """
