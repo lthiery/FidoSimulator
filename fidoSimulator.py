@@ -16,10 +16,10 @@ heaterWarmUp = 30
 class Greenhouse:
 
     #def __init__(self, initialTempOutside, initialSun,
-    #             diffusion=random.random()/200+0.05,
-    #             radiation=random.random()*0+0.25, 
-    #             fan=random.random()/100+0.00, 
-    #             heater=random.random()*5+5):
+    #             diffusion=0.008,
+    #             radiation=0.356, 
+    #             fan=0.007, 
+    #            heater=5):
     def __init__(self, initialTempOutside, initialSun,
                  diffusion=random.random()/1000+0.008,
                  radiation=random.random()/8+0.25,
@@ -205,10 +205,11 @@ for i in iterator:
     payload = '{"year":"' + year + '","month":"' + month + '","day" : "' + day +'","hour":"' + hour + '","OutsideTemp" : "' + OutsideTemp + '","Sunlight" : "'+ Sunlight +  '","InsideTemp" : "' + InsideTemp + '","CumulativeEnergyUse" : "' + CumulativeEnergyUse +'"}'
 
     opener = urllib2.build_opener(urllib2.HTTPHandler)
-    request = urllib2.Request('http://127.0.0.1:80/flounder/' + timestamp, data=payload)
+    request = urllib2.Request('http://127.0.0.1:80/flounder3/' + timestamp, data=payload)
     request.add_header('Content-Type', 'application/json')
     request.get_method = lambda: 'PUT'
-    url = opener.open(request)"""
+    url = opener.open(request)
+"""
 
 ##intelligent? model
 house2 = copy.deepcopy(house1)
@@ -269,7 +270,7 @@ for index,i in enumerate(iterator):
         now = i[-4:]
         nowM=now[2:]
         nowH=now[:2]
-        nowM=int(nowM)+15
+        nowM=int(nowM)+20
         if nowM>59: nowM%=60;nowH=int(nowH)+1
         if nowH>23: nowH='00'
         if nowM<10: nowM='0'+str(nowM)
@@ -278,12 +279,12 @@ for index,i in enumerate(iterator):
         else: nowH=str(nowH)
 
         
-        if recentTemps[nowH+nowM]>70 and when<15: 
-            pass#flag=1; when=15
+        if recentTemps[nowH+nowM][0]>70 and abs(recentTemps[i[-4:]][1]-monthOfData[i][0])<=2 and when>10 and monthOfData[i][0]>50: 
+            flag=1; when=10
 
 
 
-    if when>30 or (monthOfData[i][0]-monthOfData[iterator[index-30]][0]<0):# and monthOfData[i]<60): 
+    if when>30 or (monthOfData[i][0]-monthOfData[iterator[index-30]][0]<0 and monthOfData[i][0]<55): 
         flag = 0
         when = 0
     if flag==1: house2.state[1]=False
@@ -314,8 +315,9 @@ for index,i in enumerate(iterator):
         
         if pastThreeDays[2]!=None:
             recentTemps={}
+            weights=[0.25,0.25,0.5]
             for i in minutesIterator():
-                recentTemps[i]=pastThreeDays[0][i]*0.25+pastThreeDays[1][i]*0.25+pastThreeDays[2][i]*0.5
+                recentTemps[i]=[pastThreeDays[0][i][0]*weights[0]+pastThreeDays[1][i][0]*weights[1]+pastThreeDays[2][i][0]*weights[2],pastThreeDays[0][i][1]*weights[0]+pastThreeDays[1][i][1]*weights[1]+pastThreeDays[2][i][1]*weights[2]]
 
 A = np.array([difArr,fanArr,radArr,heatArr])
 print np.linalg.lstsq(A.T,y)[0]
@@ -353,8 +355,6 @@ plt.subplot(211)
 plt.plot(x,Itemps1)         # the second subplot in the first figure
 plt.subplot(211)
 plt.plot(x,Itemps2)
-
-#plt.figure(2)              # a second figure
 plt.subplot(212)
 
 plt.plot(x,energy1)           # creates a subplot(111) by default
