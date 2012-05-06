@@ -1,4 +1,4 @@
-#!bin/env/python2.6
+#!bin/env/python
 
 import copy
 import random
@@ -6,16 +6,22 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import pylab
+import fidoProbability as hist
 
 
 heaterWarmUp = 15
 
 class Greenhouse:
 
+    #def __init__(self, initialTempOutside, initialSun,
+    #             diffusion=random.random()/200+0.05,
+    #             radiation=random.random()*0+0.25, 
+    #             fan=random.random()/100+0.00, 
+    #             heater=random.random()*5+5):
     def __init__(self, initialTempOutside, initialSun,
                  diffusion=random.random()/100,
-                 radiation=random.random()/8+0.25, 
-                 fan=random.random()/100+0.005, 
+                 radiation=random.random()/8+0.25,
+                 fan=random.random()/100+0.005,
                  heater=random.random()*5+5):
         self.tempI = initialTempOutside + radiation*initialSun
         self.dif=diffusion
@@ -41,7 +47,7 @@ class Greenhouse:
         self.tempI+=self.heat/heaterWarmUp*min(self.heaterSteps,heaterWarmUp)
 
         energy = 0 ##calculate hypothetical energy usage
-        if self.state[0]==True: energy+=31
+        if self.state[0]==True: energy+=0#31
         if self.state[1]==True: energy+=175
 
         return (self.tempI,energy)
@@ -123,7 +129,7 @@ for i in file2:
     except: pass
 
 avgCloud = sum/float(samples)
-print avgCloud
+
 checkDict(monthOfData,iterator,1)
 
 ###SIMULATING###
@@ -188,15 +194,26 @@ difArr = []
 fanArr = []
 radArr = []
 heatArr = []
+energy=0
+flag = 0
+when = 0
 
 for i in iterator:
     #be simple thermostat at first
-    if True:
-        if lastTemp>90: house2.state[0]=True
-        elif lastTemp<80: house2.state[0]=False
+    when+=1
+
+    if lastTemp>90: house2.state[0]=True
+    elif lastTemp<80: house2.state[0]=False
         
-        if lastTemp<65: house2.state[1]=True
-        if lastTemp>70: house2.state[1]=False
+    if lastTemp<65: house2.state[1]=True
+    if lastTemp>70: house2.state[1]=False
+
+    if hist.historicalProbs[i[-4:]]>0.05:
+        when=0
+        flag=1
+        
+    if when>30: flag = 0
+    if flag==1: house2.state[1]=False
     
 
     newOutput = house2.step(monthOfData[i][0],monthOfData[i][1]/(2*avgCloud))
@@ -240,9 +257,35 @@ Osun =  [monthOfData[i][1] for i in iterator[beginRange:beginRange+endRange]]
 Itemps1 =  [monthOfData[i][2] for i in iterator[beginRange:beginRange+endRange]]
 Itemps2 = Itemps2[beginRange:beginRange+endRange]
 energy1 =  [monthOfData[i][3] for i in iterator[beginRange:beginRange+endRange]]
-energy2 = energy2[beginRange::beginRange+endRange]
+energy2 = energy2[:beginRange+endRange]
+
+
+plt.figure(1)                # the first figure
+plt.subplot(211)             # the first subplot in the first figure
 plt.plot(x,Otemps)
-plt.plot(x,Itemps1)
+plt.subplot(211) 
+plt.plot(x,Itemps1)         # the second subplot in the first figure
+plt.subplot(211)
 plt.plot(x,Itemps2)
+
+print len(energy1)
+print len(energy2)
+
+plt.figure(2)              # a second figure
+plt.subplot(111)
+plt.plot(x,energy1)           # creates a subplot(111) by default
+plt.plot(x,energy2)
+
+#plt.figure(1)                # figure 1 current; subplot(212) still current
+#plt.subplot(211)
+#plt.subplot(x,energy2)            # make subplot(211) in figure1 current
+#plt.title('Fido AI')   # subplot 211 title
+
+#plt.plot(x,Otemps)
+#plt.plot(x,Itemps1)
+#plt.plot(x,Itemps2)
+
+#plt.plot(x,energy1)
+#plt.plot(x,energy2)
 
 pylab.show()

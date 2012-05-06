@@ -77,9 +77,9 @@ for num in range(0,6):
     checkDict(monthOfData,iterator,0) #clean up data, make sure there's entries everywhere
 
     for index,v in enumerate(iterator[:-60]):
-        monthOfData[v][1]=monthOfData[v][0]-monthOfData[iterator[index+15]][0]
-        try: masterDict[v[-4:]]+=[monthOfData[v][0]-monthOfData[iterator[index+60]][0]]
-        except: masterDict[v[-4:]]=[monthOfData[v][0]-monthOfData[iterator[index+60]][0]]
+        #monthOfData[v][1]=monthOfData[v][0]-monthOfData[iterator[index+15]][0]
+        try: masterDict[v[-4:]]+=[monthOfData[v][0]-monthOfData[iterator[index+15]][0]]
+        except: masterDict[v[-4:]]=[monthOfData[v][0]-monthOfData[iterator[index+15]][0]]
            
                         
             
@@ -94,8 +94,8 @@ for num in range(0,6):
 
     plt.plot(x,Dtemps)"""
 
-arbitraryValue = 10
-probs = {}
+arbitraryValue = 2
+historicalProbs = {}
 def logic(x):
     if x>arbitraryValue: return 1 
     else: return 0
@@ -115,15 +115,20 @@ def minutesIterator():
 for i in masterDict:
     for j in masterDict[i]:
         try: 
-            probs[i]+=logic(j)/float(len(masterDict[i]))
+            #print len(masterDict[i])
+            #print logic(j)
+            historicalProbs[i]+=logic(j)/float(len(masterDict[i]))
         except:
-            probs[i]=logic(j)/float(len(masterDict[i]))
+            historicalProbs[i]=logic(j)/float(len(masterDict[i]))
 
-
-            
-y = [probs[i] for i in minutesIterator()]
+#for i in historicalProbs:
+#    print historicalProbs[i]
+"""        
+y = [historicalProbs[i] for i in minutesIterator()]
 
 x = range(0,len(y))
 plt.plot(x,y)        
 pylab.show()
+"""
+
 
